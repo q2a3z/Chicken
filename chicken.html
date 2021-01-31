@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html>
+	<style>
+		.slidecontainer {
+		width: 50%; /* Width of the outside container */
+		}
+
+		/* The slider itself */
+		.slider {
+		-webkit-appearance: none;  /* Override default CSS styles */
+		appearance: none;
+		width: 100%; /* Full-width */
+		height: 25px; /* Specified height */
+		background: #d3d3d3; /* Grey background */
+		outline: none; /* Remove outline */
+		opacity: 0.7; /* Set transparency (for mouse-over effects on hover) */
+		-webkit-transition: .2s; /* 0.2 seconds transition on hover */
+		transition: opacity .2s;
+		}
+
+		/* Mouse-over effects */
+		.slider:hover {
+		opacity: 1; /* Fully shown on mouse-over */
+		}
+
+		/* The slider handle (use -webkit- (Chrome, Opera, Safari, Edge) and -moz- (Firefox) to override default look) */
+		.slider::-webkit-slider-thumb {
+		-webkit-appearance: none; /* Override default look */
+		appearance: none;
+		width: 25px; /* Set a specific slider handle width */
+		height: 25px; /* Slider handle height */
+		background: #FFAF00;/* Green background */
+		cursor: pointer; /* Cursor on hover */
+		}
+
+		.slider::-moz-range-thumb {
+		width: 25px; /* Set a specific slider handle width */
+		height: 25px; /* Slider handle height */
+		background: #FFAF00; /* Green background */
+		cursor: pointer; /* Cursor on hover */
+		}
+		.PositionText {
+			font-size: 150%;
+			color: red;
+		}
+		</style>
+<body>
+
+	<div class="slidecontainer">
+		<p>Position: <span  class="PositionText" id="Pos"></span></p>
+		<input type="range" min="-15" max="15" value="0" class="slider" id="myRange">
+	</div>
+<canvas id="myCanvas" width="900" height="600"style="background-color:grey; ><!--style="border:1px solid #d3d3d3;">-->
+Your browser does not support the HTML canvas tag.</canvas>
+<script>
+var slider = document.getElementById("myRange");
+var output = document.getElementById("Pos");
+output.innerHTML = slider.value;
+slider.oninput = function() {
+  output.innerHTML = this.value;
+  slider.addEventListener("mousemove", function(){
+	  //var x = slider.value;
+	  //var color = 'linear-gradient(90deg, rgb(117,252,117)' + x +'%,rgb(214,214,214)'+ x +'%)';
+	  //slider.style.background = color;
+  }
+
+  )
+	
+}
+
+class Vec2{
+	/**
+	* @param{number} x  x of this Vector
+	* @param{number} y  y of this Vector
+	*/
+	constructor(x,y){
+		this.x = x;
+		this.y = y;
+	}
+	/**
+	* @param{Vec2} b Vector b add to this Vector
+	*/
+	add(b){
+		let a = this;
+		return new Vec2(a.x+b.x, a.y+b.y);
+	}
+	/**
+	* @param{Vec2} b Vector b Substract to this Vector
+	*/
+	sub(b){
+		let a = this;
+		return new Vec2(a.x-b.x, a.y-b.y);
+	}
+  	/**
+   	* このベクトルのコピーを返す
+   	*/
+  	copy() {
+    	return new Vec2(this.x, this.y);
+  	}
+  	/**
+   	* このベクトルの実数s倍を求める。
+   	* @param {number} s 何倍するか
+   	*/
+  	mult(s) {
+    	return new Vec2(s*this.x, s*this.y);
+  	}
+	/**
+    * @returns ベクトルの大きさ（成分のユークリッド距離）
+    */
+  	mag() {
+    	return sqrt(this.x ** 2 + this.y ** 2);
+  	}
+	equals(b) {
+    	let a = this;
+    	return a.x === b.x && a.y === b.y;
+  	}
+}
+class Ray2{
+	/**
+	* @param{Vec2} pos  Begining of the Ray's position
+	* @param{Vec2} way  Dirction of this Ray's Vector
+	*/
+	constructor(pos,way){
+		this.pos = pos;
+		this.way = way;
+	}
+	/**
+   	* 位置ベクトルと方向ベクトルではなく、始点と終点からレイを作る。
+  	* ※staticについて: https://developer.mozilla.org/ja/docs/Web/JavaScript/Reference/Classes/static
+   	* @param {Vec2} begin 
+   	* @param {Vec2} end 
+   	*/
+  	static with2p(begin, end) {
+    		return new Ray2(begin, end.sub(begin));
+  	}
+  	/**
+   	* このレイの始点を求める
+   	* ※getをつけると、計算時に r.begin() ではなく r.begin と書くだけでよくなる。
+   	*/
+  	get begin() {
+    		return this.pos;
+  	}
+  	/**
+   	* このレイの終点を求める
+   	*/
+  	get end() {
+    		return this.pos.add(this.way);
+  	}
+	/**
+  	* このレイと、r2の交点を求める。
+   	* @param {Ray2} r2
+   	*/
+  	intersection(r2) {
+	let r1 = this;
+	// Y軸並行の線分はこのコードでは扱えないので、並行の場合は微妙にずらす
+    	if (Math.abs(r1.way.x) < 0.01) r1.way.x = 0.01;
+    	if (Math.abs(r2.way.x) < 0.01) r2.way.x = 0.01;
+    	// r1,r2を直線として見て、その交点を求める
+    	let t1 = r1.way.y / r1.way.x;
+    	let t2 = r2.way.y / r2.way.x;
+    	let x1 = r1.pos.x;
+    	let x2 = r2.pos.x;
+    	let y1 = r1.pos.y;
+    	let y2 = r2.pos.y;
+    	let sx = (t1*x1 - t2*x2 - y1 + y2) / (t1 - t2);
+    	let sy = t1 * (sx - x1) + y1;
+		
+		return new Vec2(sx,sy);
+	}
+  	
+}
+function DrawLine(Start_x, Start_y, End_x, End_y){
+	/**
+	* @param{number} Start_x  Start x of this Line
+	* @param{number} Start_y  Start y of this Line
+	* @param{number} End_x  End x of this Line
+	* @param{number} End_y  End y of this Line 
+	*/
+	ctx.beginPath();
+	//パスの開始座標を指定する
+	ctx.moveTo(Start_x,Start_y);
+		
+	ctx.lineTo(End_x, End_y);
+		
+	//パスを閉じる（最後の座標から開始座標に向けてラインを引く）
+	ctx.closePath();
+	//現在のパスを輪郭表示する
+	ctx.stroke();
+}
+function DrawArrow(root,p1,p2){
+	/**
+	* @param{number} root  Point of this Arrow
+	* @param{number} p1  p1 of this Arrow
+	* @param{number} p2  p2 of this Arrow
+	*/
+	//Draw Line
+	ctx.strokeStyle = "white";//"rgb(100,0,255)";
+	ctx.lineWidth = 2;
+	ctx.beginPath();
+	//パスの開始座標を指定する
+	ctx.moveTo(root.x, root.y);
+	ctx.lineTo(p1.x, p1.y);
+	ctx.lineTo(p2.x, p2.y);
+	//パスを閉じる（最後の座標から開始座標に向けてラインを引く）
+	//ctx.closePath();
+	//現在のパスを輪郭表示する
+	ctx.stroke();
+	
+}
+function DrawCircle(x, y,pointSize,dgree){
+	/**
+	* @param{number} x  Center x of this Circle
+	* @param{number} y  Center y of this Circle
+	* @param{number} pointSize  Size of this Circle
+	* @param{number} dgree  Dgree of this Circle
+	*/
+	ctx.beginPath();
+	ctx.arc(x, y, pointSize, 0, dgree, true);
+	ctx.closePath();
+	ctx.stroke();
+	ctx.fill();
+}
+function DrawCross(Center,Size){
+	/**
+	* @param{number} Center of this Cross
+	* @param{number} Size  Size of this Cross
+	*/
+	ctx.beginPath();
+	ctx.moveTo(Center.x - Size/2, Center.y);	
+	ctx.lineTo(Center.x + Size/2, Center.y);
+	ctx.moveTo(Center.x , Center.y - Size/2);
+	ctx.lineTo(Center.x , Center.y + Size/2);
+	ctx.closePath();
+	ctx.stroke();
+}
+
+class Util {
+	/**
+   * @param {Vec2} ArrowRoot
+   * @param {Vec2} xAxis
+   * @param {Vec2} yAxis
+   */
+	static drawArrow(ArrowRoot, xAxis, yAxis) {
+		DrawArrow(ArrowRoot,
+		ArrowRoot.sub(xAxis),
+		ArrowRoot.sub(xAxis.mult(3/4)).sub(yAxis.mult(1/4)));
+		ctx.font = '20px Arial';
+  		ctx.strokeText('Y',ArrowRoot.x+10, ArrowRoot.y+10);
+	}
+	/**
+   * @param {number} x
+   * @param {number} y
+   * @param {number} z
+   * @param {Vec2} root
+   * @param {Vec2} xAxis
+   * @param {Vec2} yAxis
+   * @returns {Array.<Vec2>} タイルの4頂点を、原点から時計回りに返す。
+   */
+	static tileVertexes(x, y, z, root, xAxis, yAxis) {
+		let vx = x+z, vy = y+z;
+		let p = root.sub(xAxis.mult(vx)).sub(yAxis.mult(vy));
+		return [p, p.sub(xAxis), p.sub(xAxis).sub(yAxis), p.sub(yAxis)];
+	}
+	/**
+   * @param {Level} level
+   * @param {Vec2} root 原点をどこにするか（スクリーン座標系）
+   * @param {Vec2} XAxis
+   * @param {Vec2} YAxis
+   * @param {number} viewSize 描画する範囲。 例:3なら3x3タイル描画
+   * @param {Object} options
+   * @returns {Array} 引数をもとに生成された描画コマンド
+   */
+	static makeTilemapDrawers(level, root, XAxis, YAxis, viewSize, options) {
+		let ZAxis = new Vec2(0,0).add(XAxis).add(YAxis);
+		let drawers = [];
+		for(let tx=level.tileXLen-1; tx >= 0; tx--){
+			for(let ty=level.tileYLen-1; ty >= 0; ty--){
+				//先繪製地板再繪製角色
+				//每一塊獨立繪製
+				let height = options.drawHeight ? level.heightAt(tx,ty) : 0;
+				let depth = tx+ty;
+				let tvs = Util.tileVertexes(tx,ty,height,root,XAxis,YAxis);
+				drawers.push(new QuadDrawer(tvs,'ForestGreen', depth));
+				let quadDrawer3;
+				let quadDrawer4;
+				if (height > 0) {
+					// 高さのあるタイルなら、壁の描画コマンドを生成
+					let wallVec = ZAxis.mult(height);
+					// bvs = タイルの底面の4頂点。 bottom (surface) vertexes
+					let bvs = tvs.map(v => v.add(wallVec));
+					// 上面と底面を繋げて、壁面を作る（Y軸側）
+					//quadDrawer3 = new QuadDrawer([bvs[1], tvs[1], tvs[0], bvs[0]],'DarkGreen', depth);
+					drawers.push(new QuadDrawer([bvs[1], tvs[1], tvs[0], bvs[0]],'DarkGreen', depth));
+					// 上面と底面を繋げて、壁面を作る（X軸側）
+					//quadDrawer4 = new QuadDrawer([tvs[0], bvs[0], bvs[3], tvs[3]],'DarkGreen', depth);
+					drawers.push(new QuadDrawer([tvs[0], bvs[0], bvs[3], tvs[3]],'DarkGreen', depth));
+				}
+			}
+		}
+		return drawers;
+   }
+}
+class QuadDrawer{
+	/**
+	* @param{number} vertexes  Point of this Arrow
+	* @param{number} color  p1 of this Arrow
+	* @param{number} depth  p2 of this Arrow
+	*/
+	constructor(vertexes, color, depth) {
+		this.vertexes = vertexes;
+		this.color = color;
+		this.depth = depth;
+	}
+	draw(){
+		//Draw Line
+		let vs = this.vertexes;
+		ctx.strokeStyle = "black";//"rgb(100,0,255)";
+		ctx.lineWidth = 3;
+		ctx.beginPath();
+		//パスの開始座標を指定する
+		ctx.moveTo(vs[0].x, vs[0].y);
+		ctx.lineTo(vs[1].x, vs[1].y);
+		ctx.lineTo(vs[2].x, vs[2].y);
+		ctx.lineTo(vs[3].x, vs[3].y);
+		//パスを閉じる（最後の座標から開始座標に向けてラインを引く）
+		ctx.closePath();
+		//現在のパスを輪郭表示する
+		ctx.stroke();
+		//Fill The Quad
+		ctx.fillStyle = this.color;
+		//ctx.fillStyle = "DarkGreen";
+		ctx.fill();
+	}
+}
+class ShadowDrawer{
+  /**
+   * 影を描画するコマンド
+   * @param {Vec2} pos 
+   * @param {number} radius 
+   * @param {number} depth
+   */
+  constructor(pos, radius, depth) {
+    this.pos = pos;
+    this.radius = radius;
+    this.depth = depth;
+  }
+  draw() {
+    let pos = this.pos;
+    let radius = this.radius;
+    ctx.strokeStyle = "black";//"rgb(100,0,255)";
+	ctx.lineWidth = 3;
+	ctx.fillStyle = "black"; 
+	let sunPosition = Number(slider.value); 
+	ctx.beginPath();
+    ctx.ellipse(pos.x+sunPosition, pos.y, radius*3, radius*1.5, 0, 0, Math.PI * 2);
+	ctx.closePath();
+	ctx.stroke();
+	ctx.fill();
+  }
+}
+class ChickenDrawer{
+
+	/**
+	* ひよこ？を描画するコマンド
+	* @param {Vec2} pos 足元の位置ベクトル
+	* @param {number} angle Z軸の角度
+	* @param {number} animFrame アニメーションの何フレーム目を再生するか
+	* @param {number} depth
+	*/
+	constructor(pos, angle, animFrame, depth) {
+		this.pos = pos;
+		this.angle = angle;
+		this.animFrame = animFrame;
+		this.depth = depth;
+	}
+	draw(){
+		let pos = this.pos;
+		let angle = this.angle;
+		let normalized = a => ((a+0.0001+10000*Math.PI) % (2*Math.PI));//Set angle to 0 ~ 2pi
+		let isFacingUs = a => (a = normalized(a), ((a > Math.PI || a < 0.001 )));
+		let isBackUs = a => (a = normalized(a), ((a > Math.PI/4 && a < 3*Math.PI/4 )));
+		angle = normalized(angle);
+
+		let shake = new Vec2(0,0);//new Vec2(0, ((animFrame % 20) > 10) ? -2 : 0);
+		let bodyCenter = pos.add(new Vec2(0,-16));//.add(shake);
+		let assCenter = isBackUs(angle) ? bodyCenter.add(new Vec2(12*Math.cos(angle+Math.PI), -4)) : null;
+		let headCenter = bodyCenter.add(new Vec2(6*Math.cos(angle),-16));//.sub(shake);
+		let beakCenter = isFacingUs(angle) ? headCenter.add(new Vec2(19*Math.cos(angle),0)) : null;
+		let halmetCenter = headCenter.add(new Vec2(0,-13));
+		let halmetMarkCenter = isFacingUs(angle) ? halmetCenter.add(new Vec2(6*Math.cos(angle),-10)) : null;
+		let eyes = [];
+		if (isFacingUs(angle-Math.PI/3)) 
+		eyes.push(headCenter.add(new Vec2(8*Math.cos(angle-Math.PI/3),-5)));
+		if (isFacingUs(angle+Math.PI/3)) 
+		eyes.push(headCenter.add(new Vec2(8*Math.cos(angle+Math.PI/3),-5)));
+
+		ctx.strokeStyle = "black";//"rgb(100,0,255)";
+		ctx.lineWidth = 3;
+		ctx.fillStyle = "yellow";
+		let drawBody = _=> DrawCircle(bodyCenter.x,bodyCenter.y,20,Math.PI*2);//Draw Body
+		let drawHead = _=> DrawCircle(headCenter.x,headCenter.y,17,Math.PI*2);//Draw Head
+		if (isFacingUs(angle)) {
+		drawBody();drawHead();
+		} else {
+		drawHead();drawBody();
+		}
+		ctx.fillStyle = "orange";
+		if (beakCenter !== null) 
+			DrawCircle(beakCenter.x,beakCenter.y,3,Math.PI); //Draw Beak
+		ctx.fillStyle = "black";
+		for(let eye of eyes){
+			DrawCircle(eye.x,eye.y,1,Math.PI*2);	//Draw Eyes
+		}
+		if (assCenter !== null) {
+			ctx.font = '14px Courier New';
+  			ctx.strokeText('x',assCenter.x, assCenter.y);
+    	}
+		ctx.fillStyle = "rgb(51,51,255)";
+		DrawCircle(halmetCenter.x,halmetCenter.y,17,Math.PI);//Draw Head
+		ctx.strokeStyle = "rgb(204,255,153)";
+		ctx.lineWidth = 4;
+		if (halmetMarkCenter !== null) 
+		DrawCross(halmetMarkCenter,10);	//Draw Cross
+	}
+}
+
+class Player {
+  constructor() {
+    this.pos = new Vec2(1.5, 3.5);
+    this.angle = -Math.PI/2;
+    this.height = 1;
+    this.vz = 0;
+    this.animFrame = 0;
+  }
+}
+class Level {
+  constructor() {
+    /** @type {Array.<number> */
+    this.heights = [];
+    this.tileXLen = 0;
+    this.tileYLen = 0;
+  }
+  /**
+   * @param {number} x 
+   * @param {number} y 
+   */
+  asIndex(x, y) {
+    let xi = Math.floor(x), yi = Math.floor(y);
+    if (xi < 0 || xi >= this.tileXLen) return -1;
+    if (yi < 0 || yi >= this.tileYLen) return -1;
+    return yi*this.tileXLen + xi;
+  }
+  /**
+   * @param {number} x
+   * @param {number} y 
+   */
+  heightAt(x, y) {
+    let i = this.asIndex(x,y);
+    return i === -1 ? 0 : this.heights[i];
+  }
+  /**
+   * @param {number} x
+   * @param {number} y 
+   * @param {number} z 
+   */
+  isPassable(x, y, z) {
+	/*
+	let xi = Math.floor(x), yi = Math.floor(y); 
+	if (xi < 0 || xi >= this.tileXLen) return 0;
+    if (yi < 0 || yi >= this.tileYLen) return 0;
+	return 1 ;
+	*/
+    return this.heightAt(x,y) !== 0 && z >= this.heightAt(x,y);
+  }
+}
+class Game{
+	constructor() {
+		//----- プレイヤーを生成
+		let player = new Player();
+		this.player = player;
+
+		//----- ゲームの舞台を生成
+		let level = new Level();
+		level.heights = [
+		1.0, 1.0, 1.0, 1.0,
+		1.0, 1.0, 2.0, 1.0,
+		1.0, 1.0, 2.0, 1.0,
+		1.0, 1.0, 1.0, 1.0,
+		];
+		level.tileXLen = 4;
+		level.tileYLen = 4;
+		this.level = level;
+  	}
+	proc(){	
+		let player = this.player;
+    	let level = this.level;
+    	let pos = player.pos;
+		let x;
+		let y;
+		//Add Mouse Down Event
+		canv.addEventListener('mousedown', e => {
+			x = e.offsetX;
+			y = e.offsetY;
+			isDrawing = true;
+		});
+		//Add Mouse Move Event
+		canv.addEventListener('mousemove', e => {
+		if (isDrawing === true) {
+				//drawLine(context, x, y, e.offsetX, e.offsetY);
+				x = e.offsetX;
+				y = e.offsetY;
+			}
+		});
+		//Add Mouse Up Event
+		window.addEventListener('mouseup', e => {
+			if (isDrawing === true) {
+				isDrawing = false;
+			}
+		});
+		
+		//Add Keyboard Event
+		//document.addEventListener("keydown",keyPush);
+		/*Multi Key*/
+		let keysPressed = {};
+		document.addEventListener('keydown', (event) => {
+			keysPressed[event.key] = true;
+			let ix = 0, iy = 0;
+			if(keysPressed['d']) ix = 1; //D
+			if(keysPressed['w']) iy = 1; //W
+			if(keysPressed['a']) ix = -1; //A
+			if(keysPressed['s']) iy = -1; //S
+			if(event.keyCode == 81) player.angle += Math.PI/16;
+			if(event.keyCode == 69) player.angle -= Math.PI/16;
+			let inputVec = new Vec2(ix, iy);
+			if (!inputVec.equals(new Vec2(0,0))) {
+				// 歩行アニメーションを進める
+				player.animFrame++;
+				// どの角度に歩いているかを、キー入力から求める
+				let angle = Math.atan2(inputVec.y,inputVec.x) - Math.PI/4;
+				player.angle = angle + Math.PI/4;
+				// 1フレーム歩いたあとの座標を求め、そこに壁などがなければ、実際にそこへ移動する
+				let futurePos = player.pos.add(new Vec2(Math.sin(angle),Math.cos(angle)).mult(1/8));
+				if (level.isPassable(futurePos.x, futurePos.y, player.height)) {
+					player.pos = futurePos;
+				}
+			}
+		});
+		document.addEventListener('keyup', (event) => {
+			delete keysPressed[event.key];
+		});
+	}
+	draw(){
+		let root = new Vec2(300,500);
+		let XAxis = new Vec2(50,25);
+		let YAxis = new Vec2(-50,25);
+		let ZAxis = new Vec2(0,0).add(XAxis).add(YAxis);
+		let topRoot = new Vec2(800,300);
+		let topXAxis = new Vec2(48,0);
+		let topYAxis = new Vec2(0,48);
+		let level = this.level;
+		let sunPosition = Number(slider.value);
+		//let viewSize = 4;
+		//Background
+		let BGcolor = "rgb("+Math.abs(Number(slider.value))*8+219+",196,134)";
+		//console.log(BGcolor);
+		if(sunPosition < 5 && sunPosition > -5)
+			ctx.fillStyle = "rgb(219,196,134)";
+		else
+			ctx.fillStyle = BGcolor;
+		ctx.fillRect(0,0,canv.width,canv.height);
+		let player = this.player;
+		let playerLoc = player.pos.copy();
+
+		//Draw Arrow{Root , Point 1 , Point2} /____
+		Util.drawArrow(topRoot.add(new Vec2(0,20)), topXAxis, topYAxis);
+		Util.drawArrow(root.add(new Vec2(-10,15)), XAxis, YAxis);
+
+		let isoDrawers = Util.makeTilemapDrawers(
+			level, root, XAxis, YAxis, 4,
+      		{drawHeight: true}
+			);
+		
+		let topDrawers = Util.makeTilemapDrawers(
+			level, topRoot, topXAxis, topYAxis, 4,
+      		{drawHeight: false}
+			);
+		
+		let playerIsoPos = (root.sub(XAxis.mult(playerLoc.x)).sub(YAxis.mult(playerLoc.y)).sub(ZAxis.mult(player.height)));
+		let playerIsoAngle = player.angle;
+		let playerTopPos = topRoot.sub(topXAxis.mult(playerLoc.x).add(topYAxis.mult(playerLoc.y)));
+		let playerTopAngle = player.angle + Math.PI/4;;
+		let shadowPos = playerIsoPos.sub(ZAxis.mult(0));//player.height));// - floorHeight));
+		let chickenDrawer =  new ChickenDrawer(
+			playerIsoPos,
+			playerIsoAngle,
+			0,//player.animFrame,
+      		Math.floor(player.pos.x) + Math.floor(player.pos.y));
+		let shadowDrawer = new ShadowDrawer(shadowPos, 6 ,chickenDrawer.depth);
+
+		let chickenTopDrawer = new ChickenDrawer(
+			playerTopPos,
+			playerTopAngle,
+			0,
+			0);
+		
+		shadowDrawer.draw();
+		chickenDrawer.draw();
+		chickenTopDrawer.draw();
+		let isoDrawOrder =[...isoDrawers, shadowDrawer, chickenDrawer];
+		isoDrawOrder.sort( (a,b) => b.depth - a.depth);
+		for(let d of isoDrawOrder)
+			d.draw();
+		let topDrawOrder =[...topDrawers, chickenTopDrawer];
+		for(let d of topDrawOrder)
+			d.draw();
+		ctx.strokeStyle = "white";
+		ctx.lineWidth = 3;
+		ctx.font = '40px serif';
+  		ctx.strokeText('W,S,A,Dキーで移動、Q,Eキーで回転',10, 35);
+	}
+}
+
+let game;
+let isDrawing = false;
+setup();
+function setup(){
+	canv = document.getElementById("myCanvas");
+	ctx = canv.getContext("2d");
+	game = new Game();
+	game.proc();
+	setInterval(draw , 1000/15);
+	//draw();
+}
+function draw(){
+	game.draw();
+}
+</script>
+
+</body>
+</html>
